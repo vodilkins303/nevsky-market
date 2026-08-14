@@ -1,6 +1,5 @@
-// app.js v8.1 — lite endpoint + fallback + UUID fix + skeleton
-var API_LITE="https://vlvc.ru/api/v1/products/lite";
-var API_FULL="https://vlvc.ru/api/v1/products";
+// app.js v8.2 — dual router (vlvc.ru + klan-bro.ru fallback) + lite endpoint + skeleton
+var ROUTERS=["https://vlvc.ru/api/v1/products/lite","https://klan-bro.ru/api/v1/products/lite","https://vlvc.ru/api/v1/products","https://klan-bro.ru/api/v1/products"];
 var API_ORDER="https://vlvc.ru/api/v1/Order";
 var IMG_BASE="https://vlvc.ru";
 var TIMEOUT_MS=10000;var CACHE_TTL=300000;
@@ -8,10 +7,10 @@ function fetchWithTimeout(url,opts,ms){var ctrl=new AbortController();var timer=
 function gc(k){try{var c=localStorage.getItem(k);if(!c)return null;var p=JSON.parse(c);if(Date.now()-p.ts<CACHE_TTL)return p.data;localStorage.removeItem(k);}catch(e){}return null;}
 function sc(k,d){try{localStorage.setItem(k,JSON.stringify({data:d,ts:Date.now()}));}catch(e){}}
 async function fetchOnce(url){var r=await fetchWithTimeout(url,{method:"GET"},TIMEOUT_MS);var d=await r.json();return Array.isArray(d)?d:(d.items||[]);}
-async function fetchProducts(){var ck="alko_lite_v81";var cached=gc(ck);if(cached)return cached;
+async function fetchProducts(){var ck="alko_v82";var cached=gc(ck);if(cached)return cached;
 for(var attempt=0;attempt<2;attempt++){
-for(var ui=0;ui<2;ui++){
-try{var url=ui===0?API_LITE:API_FULL;var items=await fetchOnce(url);if(items&&items.length>0){sc(ck,items);return items;}}catch(e){console.log("[fetch] a"+(attempt+1)+" u"+(ui+1)+" "+(ui===0?"lite":"full")+" fail: "+e.message);}}}
+for(var ri=0;ri<ROUTERS.length;ri++){
+try{var items=await fetchOnce(ROUTERS[ri]);if(items&&items.length>0){sc(ck,items);return items;}}catch(e){console.log("[fetch] a"+(attempt+1)+" r"+(ri+1)+" "+ROUTERS[ri].split("/")[2]+" fail: "+e.message);}}}
 var ex=localStorage.getItem(ck);if(ex){try{return JSON.parse(ex).data;}catch(e3){}}
 throw new Error("Каталог недоступен");}
 async function sendOrder(orderData){
