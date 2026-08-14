@@ -1,5 +1,5 @@
 // F2 app.js v4 — Base44 proxy primary + vlvc.ru fallback
-var PROXY_PRODUCTS="https://lyra-15172d69.base44.app/functions/proxyProducts";
+var PROXY_PRODUCTS="https://lyra-15172d69.base44.app/functions/proxyProducts?limit=24";
 var PROXY_ORDER="https://lyra-15172d69.base44.app/functions/proxyOrder";
 var VPS_PRODUCTS="https://vlvc.ru/api/v1/products";
 var VPS_ORDER="https://vlvc.ru/api/v1/Order";
@@ -9,7 +9,7 @@ function gc(k){try{var c=localStorage.getItem(k);if(!c)return null;var p=JSON.pa
 function sc(k,d){try{localStorage.setItem(k,JSON.stringify({data:d,ts:Date.now()}));}catch(e){}}
 async function fetchProducts(){var ck="alko_products";var cached=gc(ck);if(cached)return cached;
 // Try Base44 proxy first
-try{var r=await fetch(PROXY_PRODUCTS,{method:"GET"});if(r.ok){var d=await r.json();var items=d.items||d;if(items&&items.length>0){sc(ck,items);return items;}}}catch(e){console.log("[proxy] fail: "+e.message);}
+try{var r=await fetch(PROXY_PRODUCTS,{method:"GET",mode:"cors"});if(r.ok){var d=await r.json();var items=d.items||d;if(items&&items.length>0){sc(ck,items);return items;}}}catch(e){console.log("[proxy] fail: "+e.message);}
 // Fallback to vlvc.ru
 try{var r2=await fetch(VPS_PRODUCTS,{method:"GET"});if(r2.ok){var d2=await r2.json();if(d2&&d2.length>0){sc(ck,d2);return d2;}}}catch(e){console.log("[vps] fail: "+e.message);}
 // Last resort: expired cache
