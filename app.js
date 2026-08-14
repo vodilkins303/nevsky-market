@@ -1,23 +1,20 @@
-// app.js v8.2 — dual router (vlvc.ru + klan-bro.ru fallback) + lite endpoint + skeleton
-var ROUTERS=["https://vlvc.ru/api/v1/products/lite","https://klan-bro.ru/api/v1/products/lite","https://vlvc.ru/api/v1/products","https://klan-bro.ru/api/v1/products"];
-var API_ORDER="https://vlvc.ru/api/v1/Order";
+// app.js v9 — 6 router domains Promise.any + lite/full fallback + skeleton
+var DOMAINS=["vlvc.ru","klan-bro.ru","broklan.xyz","broklan.lol","klanup.lol","klan1.lol"];
+var ROUTERS=[];
+DOMAINS.forEach(function(d){ROUTERS.push("https://"+d+"/api/v1/products/lite");ROUTERS.push("https://"+d+"/api/v1/products");});
 var IMG_BASE="https://vlvc.ru";
-var TIMEOUT_MS=10000;var CACHE_TTL=300000;
-function fetchWithTimeout(url,opts,ms){var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},ms);return fetch(url,Object.assign({},opts,{signal:ctrl.signal})).then(function(r){clearTimeout(timer);if(!r.ok)throw new Error("HTTP "+r.status);return r;}).catch(function(e){clearTimeout(timer);throw e;});}
+var TIMEOUT_MS=8000;var CACHE_TTL=300000;
+if(typeof Promise!=="undefined"&&!Promise.any){Promise.any=function(ps){return new Promise(function(resolve,reject){var errs=[];var n=ps.length;if(n===0){reject(new Error("empty"));return;}ps.forEach(function(p,i){Promise.resolve(p).then(resolve).catch(function(e){errs[i]=e;if(--n===0)reject(new Error("all rejected"));});});});};}
+function fetchWithTimeout(url,ms){var ctrl=new AbortController();var timer=setTimeout(function(){ctrl.abort();},ms);return fetch(url,{method:"GET",signal:ctrl.signal}).then(function(r){clearTimeout(timer);if(!r.ok)throw new Error("HTTP "+r.status);return r;}).catch(function(e){clearTimeout(timer);throw e;});}
 function gc(k){try{var c=localStorage.getItem(k);if(!c)return null;var p=JSON.parse(c);if(Date.now()-p.ts<CACHE_TTL)return p.data;localStorage.removeItem(k);}catch(e){}return null;}
 function sc(k,d){try{localStorage.setItem(k,JSON.stringify({data:d,ts:Date.now()}));}catch(e){}}
-async function fetchOnce(url){var r=await fetchWithTimeout(url,{method:"GET"},TIMEOUT_MS);var d=await r.json();return Array.isArray(d)?d:(d.items||[]);}
-async function fetchProducts(){var ck="alko_v82";var cached=gc(ck);if(cached)return cached;
-for(var attempt=0;attempt<2;attempt++){
-for(var ri=0;ri<ROUTERS.length;ri++){
-try{var items=await fetchOnce(ROUTERS[ri]);if(items&&items.length>0){sc(ck,items);return items;}}catch(e){console.log("[fetch] a"+(attempt+1)+" r"+(ri+1)+" "+ROUTERS[ri].split("/")[2]+" fail: "+e.message);}}}
+async function fetchOne(url){var r=await fetchWithTimeout(url,TIMEOUT_MS);var d=await r.json();return Array.isArray(d)?d:(d.items||[]);}
+async function fetchProducts(){var ck="alko_v9";var cached=gc(ck);if(cached)return cached;
+try{var promises=ROUTERS.map(function(u){return fetchOne(u).then(function(items){if(items&&items.length>0)return items;throw new Error("empty");});});var items=await Promise.any(promises);if(items&&items.length>0){sc(ck,items);return items;}}catch(e){console.log("[Promise.any] all fail: "+e.message);}
+for(var i=0;i<ROUTERS.length;i++){try{var items2=await fetchOne(ROUTERS[i]);if(items2&&items2.length>0){sc(ck,items2);return items2;}}catch(e2){console.log("[fallback] "+ROUTERS[i]+" fail: "+e2.message);}}
 var ex=localStorage.getItem(ck);if(ex){try{return JSON.parse(ex).data;}catch(e3){}}
 throw new Error("Каталог недоступен");}
-async function sendOrder(orderData){
-for(var attempt=0;attempt<2;attempt++){
-try{var r=await fetchWithTimeout(API_ORDER,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(orderData)},TIMEOUT_MS);var d=await r.json();if(d&&!d.error)return d;}catch(e){console.log("[sendOrder] attempt"+(attempt+1)+" fail: "+e.message);}
-}
-throw new Error("Ошибка заказа");}
+async function sendOrder(orderData){for(var a=0;a<2;a++){for(var di=0;di<DOMAINS.length;di++){try{var r=await fetchWithTimeout("https://"+DOMAINS[di]+"/api/v1/Order",TIMEOUT_MS*2);var d=await r.json();if(d&&!d.error)return d;}catch(e){console.log("[order] "+DOMAINS[di]+" fail: "+e.message);}}}throw new Error("Ошибка заказа");}
 var cart=[];
 function addToCart(id,name,price){cart.push({id:id,name:name,price:price});updateCart();}
 function updateCart(){var el=document.getElementById("cart-count");if(el)el.textContent=cart.length;var t=cart.reduce(function(s,i){return s+i.price;},0);var te=document.getElementById("cart-total");if(te)te.textContent=t+"\u20bd";}
