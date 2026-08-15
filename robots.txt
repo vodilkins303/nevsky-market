@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vodilkins303.github.io/nevsky-market/sitemap.xml
